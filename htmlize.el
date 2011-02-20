@@ -1,10 +1,10 @@
 ;; htmlize.el -- Convert buffer text and decorations to HTML.
 
-;; Copyright (C) 1997,1998,1999,2000,2001,2002,2003,2005,2006,2009 Hrvoje Niksic
+;; Copyright (C) 1997-2003,2005,2006,2009,2011 Hrvoje Niksic
 
 ;; Author: Hrvoje Niksic <hniksic@xemacs.org>
 ;; Keywords: hypermedia, extensions
-;; Version: 1.37
+;; Version: 1.38
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 ;; decorations to HTML.  Mail to <hniksic@xemacs.org> to discuss
 ;; features and additions.  All suggestions are more than welcome.
 
-;; To use this, just switch to the buffer you want HTML-ized and type
+;; To use it, just switch to the buffer you want HTML-ized and type
 ;; `M-x htmlize-buffer'.  You will be switched to a new buffer that
 ;; contains the resulting HTML code.  You can edit and inspect this
 ;; buffer, or you can just save it with C-x C-w.  `M-x htmlize-file'
@@ -63,19 +63,23 @@
 ;; remove that particular dependency.  When byte-compiling under GNU
 ;; Emacs, you're likely to get some warnings; just ignore them.
 
-;; The latest version should be available at:
+;; The latest version is available as a git repository at:
 ;;
-;;        <http://fly.srk.fer.hr/~hniksic/emacs/htmlize.el>
+;;        <http://fly.srk.fer.hr/~hniksic/emacs/htmlize.git>
+;;
+;; The snapshot of the latest release can be obtained at:
+;;
+;;        <http://fly.srk.fer.hr/~hniksic/emacs/htmlize.el.cgi>
 ;;
 ;; You can find a sample of htmlize's output (possibly generated with
 ;; an older version) at:
 ;;
 ;;        <http://fly.srk.fer.hr/~hniksic/emacs/htmlize.el.html>
 
-;; Thanks go to the multitudes of people who have sent reports and
-;; contributed comments, suggestions, and fixes.  They include Ron
-;; Gut, Bob Weiner, Toni Drabik, Peter Breton, Thomas Vogels, Juri
-;; Linkov, Maciek Pasternacki, and many others.
+;; Thanks go to the many people who have sent reports and contributed
+;; comments, suggestions, and fixes.  They include Ron Gut, Bob
+;; Weiner, Toni Drabik, Peter Breton, Thomas Vogels, Juri Linkov,
+;; Maciek Pasternacki, and many others.
 
 ;; User quotes: "You sir, are a sick, sick, _sick_ person. :)"
 ;;                  -- Bill Perry, author of Emacs/W3
@@ -97,7 +101,7 @@
     ;; `cl' is loaded.
     (load "cl-extra")))
 
-(defconst htmlize-version "1.37")
+(defconst htmlize-version "1.38")
 
 ;; Incantations to make custom stuff work without customize, e.g. on
 ;; XEmacs 19.14 or GNU Emacs 19.34.
@@ -1438,9 +1442,7 @@ it's called with the same value of KEY.  All other times, the cached
 					      (file-name-nondirectory
 					       (buffer-file-name)))
 					   "*html*")))
-	   ;; Having a dummy value in the plist allows writing simply
-	   ;; (plist-put places foo bar).
-	   (places '(nil nil))
+	   (places (gensym))
 	   (title (if (buffer-file-name)
 		      (file-name-nondirectory (buffer-file-name))
 		    (buffer-name))))
@@ -1451,7 +1453,7 @@ it's called with the same value of KEY.  All other times, the cached
 		(format "<!-- Created by htmlize-%s in %s mode. -->\n"
 			htmlize-version htmlize-output-type)
 		"<html>\n  ")
-	(plist-put places 'head-start (point-marker))
+	(put places 'head-start (point-marker))
 	(insert "<head>\n"
 		"    <title>" (htmlize-protect-string title) "</title>\n"
 		(if htmlize-html-charset
@@ -1462,12 +1464,12 @@ it's called with the same value of KEY.  All other times, the cached
 		htmlize-head-tags)
 	(htmlize-method insert-head buffer-faces face-map)
 	(insert "  </head>")
-	(plist-put places 'head-end (point-marker))
+	(put places 'head-end (point-marker))
 	(insert "\n  ")
-	(plist-put places 'body-start (point-marker))
+	(put places 'body-start (point-marker))
 	(insert (htmlize-method body-tag face-map)
 		"\n    ")
-	(plist-put places 'content-start (point-marker))
+	(put places 'content-start (point-marker))
 	(insert "<pre>\n"))
       (let ((insert-text-method
 	     ;; Get the inserter method, so we can funcall it inside
@@ -1517,9 +1519,9 @@ it's called with the same value of KEY.  All other times, the cached
       ;; Insert the epilog and post-process the buffer.
       (with-current-buffer htmlbuf
 	(insert "</pre>")
-	(plist-put places 'content-end (point-marker))
+	(put places 'content-end (point-marker))
 	(insert "\n  </body>")
-	(plist-put places 'body-end (point-marker))
+	(put places 'body-end (point-marker))
 	(insert "\n</html>\n")
 	(when htmlize-generate-hyperlinks
 	  (htmlize-make-hyperlinks))
@@ -1541,7 +1543,8 @@ it's called with the same value of KEY.  All other times, the cached
 	  ;; What sucks about this is that the minor modes, most notably
 	  ;; font-lock-mode, won't be initialized.  Oh well.
 	  (funcall htmlize-html-major-mode))
-	(set (make-local-variable 'htmlize-buffer-places) places)
+	(set (make-local-variable 'htmlize-buffer-places)
+             (symbol-plist places))
 	(run-hooks 'htmlize-after-hook)
 	(buffer-enable-undo))
       htmlbuf)))
